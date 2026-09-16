@@ -113,20 +113,23 @@ struct ContentView: View {
     private var sidebar: some View {
         List {
             Section {
-                HStack(spacing: 12) {
-                    ProfileAvatarView(diameter: 44)
-                    VStack(alignment: .leading, spacing: 2) {
+                VStack(spacing: 10) {
+                    ProfileAvatarView(diameter: 60, ringWidth: 2.5)
+                        .shadow(color: Color.accentColor.opacity(0.35), radius: 10, y: 4)
+                    VStack(spacing: 2) {
                         Text("kantarto IPTV")
-                            .font(.system(.headline, design: .rounded))
+                            .font(.system(.title3, design: .rounded).weight(.bold))
                         if let profile = profileStore.selectedProfile {
                             Text(profile.name)
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }
                     }
-                    Spacer()
                 }
-                .padding(.vertical, 6)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 14)
+                .listRowInsets(EdgeInsets())
+                .listRowBackground(Color.clear)
             }
 
             Section("Playlist") {
@@ -158,22 +161,45 @@ struct ContentView: View {
 
             Section("Περιεχόμενο") {
                 ForEach(BrowseSection.allCases) { section in
-                    Button {
-                        selectedSection = section
-                    } label: {
-                        Label(section.rawValue, systemImage: section.systemImage)
-                            .fontWeight(selectedSection == section ? .semibold : .regular)
-                    }
-                    .buttonStyle(.plain)
-                    .foregroundStyle(selectedSection == section ? Color.accentColor : Color.primary)
-                    .listRowBackground(
-                        selectedSection == section ? Color.accentColor.opacity(0.14) : Color.clear
-                    )
+                    sectionRow(section)
                 }
             }
+            .listRowSeparator(.hidden)
         }
         .listStyle(.sidebar)
         .navigationTitle("kantarto IPTV")
+    }
+
+    private func sectionRow(_ section: BrowseSection) -> some View {
+        let isSelected = selectedSection == section
+        return Button {
+            withAnimation(.spring(response: 0.28, dampingFraction: 0.8)) {
+                selectedSection = section
+            }
+        } label: {
+            HStack(spacing: 10) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 7, style: .continuous)
+                        .fill(isSelected ? Color.accentColor : Color.primary.opacity(0.08))
+                        .frame(width: 26, height: 26)
+                    Image(systemName: section.systemImage)
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(isSelected ? .white : Color.primary.opacity(0.7))
+                }
+                Text(section.rawValue)
+                    .font(.system(size: 13, weight: isSelected ? .semibold : .regular))
+                    .foregroundStyle(isSelected ? Color.primary : Color.primary.opacity(0.85))
+                Spacer()
+            }
+            .padding(.vertical, 4)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .listRowBackground(
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .fill(isSelected ? Color.accentColor.opacity(0.16) : Color.clear)
+                .padding(.vertical, 1)
+        )
     }
 
     @ViewBuilder
