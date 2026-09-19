@@ -44,6 +44,10 @@ struct PlayerView: View {
     @State private var retryTask: Task<Void, Never>?
     @State private var countdownTask: Task<Void, Never>?
     @State private var cancellables: Set<AnyCancellable> = []
+    /// Keeps the display awake while a channel/movie is actually playing —
+    /// without this, watching a live match with no mouse/keyboard activity
+    /// eventually lets the Mac's display sleep like normal.
+    @State private var sleepAssertion: NSObjectProtocol?
 
     private enum VODState {
         case countingDown
@@ -121,6 +125,7 @@ struct PlayerView: View {
         .navigationTitle(title ?? "")
         .onAppear { setUpPlayer() }
         .onChange(of: url) { _, _ in setUpPlayer() }
+        .onDisappear { endPreventingSleep() }
     }
 
     /// Exactly one of these replaces the whole video area at a time: the actual
@@ -238,6 +243,21 @@ struct PlayerView: View {
         vodState = .openedInVLC
     }
 
+    private func beginPreventingSleep() {
+        guard sleepAssertion == nil else { return }
+        sleepAssertion = ProcessInfo.processInfo.beginActivity(
+            options: [.idleDisplaySleepDisabled, .userInitiated],
+            reason: "Αναπαραγωγή βίντεο"
+        )
+    }
+
+    private func endPreventingSleep() {
+        if let sleepAssertion {
+            ProcessInfo.processInfo.endActivity(sleepAssertion)
+        }
+        sleepAssertion = nil
+    }
+
     /// Full reset for a newly chosen channel/movie/episode — cancels any pending
     /// reconnect/countdown from whatever was playing before.
     private func setUpPlayer() {
@@ -252,6 +272,7 @@ struct PlayerView: View {
         player?.pause()
         cancellables.removeAll()
         isExternalPlaybackActive = false
+        endPreventingSleep()
 
         guard let url else {
             player = nil
@@ -266,6 +287,7 @@ struct PlayerView: View {
         player = newPlayer
         newPlayer.play()
         observe(newPlayer)
+        beginPreventingSleep()
     }
 
     private func observe(_ avPlayer: AVPlayer) {
@@ -303,6 +325,7 @@ struct PlayerView: View {
 
         guard isLive else {
             player = nil // hide AVKit's own "media unavailable" placeholder
+            endPreventingSleep()
             if vlcInstalled {
                 startCountdown()
             } else {
